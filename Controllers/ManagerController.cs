@@ -2,13 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using PropertyManagement.Constants;
 using PropertyManagement.Data;
 using PropertyManagement.Models;
 using PropertyManagement.ViewModels;
 
 namespace PropertyManagement.Controllers;
 
-[Authorize(Roles = "Property Manager")]
+[Authorize(Roles = AppRoles.PropertyManager)]
 public class ManagerController(PropertyManagementDbContext context) : Controller
 {
     private readonly PropertyManagementDbContext _context = context;

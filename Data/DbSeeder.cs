@@ -1,6 +1,7 @@
 using Bogus;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using PropertyManagement.Constants;
 using PropertyManagement.Enums;
 using PropertyManagement.Models;
 
@@ -26,11 +27,7 @@ public static class DbSeeder
     private static async Task SeedRolesAsync(
         RoleManager<IdentityRole> roleManager)
     {
-        string[] roles =
-        [
-            "Applicant",
-            "Property Manager"
-        ];
+        string[] roles = [.. AppRoles.All];
 
         foreach (var role in roles)
         {
@@ -49,21 +46,21 @@ public static class DbSeeder
             email: "manager@example.com",
             firstName: "John",
             lastName: "Manager",
-            role: "Property Manager");
+            role: AppRoles.PropertyManager);
 
         await CreateUserAsync(
             userManager,
             email: "applicant1@example.com",
             firstName: "Jane",
             lastName: "Applicant",
-            role: "Applicant");
+            role: AppRoles.Applicant);
 
         await CreateUserAsync(
             userManager,
             email: "applicant2@example.com",
             firstName: "Bob",
             lastName: "Applicant",
-            role: "Applicant");
+            role: AppRoles.Applicant);
     }
 
     private static async Task CreateUserAsync(
@@ -220,10 +217,10 @@ public static class DbSeeder
         }
 
         var applicants = await userManager
-            .GetUsersInRoleAsync("Applicant");
+            .GetUsersInRoleAsync(AppRoles.Applicant);
 
         var manager = (await userManager
-            .GetUsersInRoleAsync("Property Manager"))
+            .GetUsersInRoleAsync(AppRoles.PropertyManager))
             .First();
 
         var units = await context.Units
