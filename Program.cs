@@ -5,6 +5,8 @@ using PropertyManagement.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSingleton(TimeProvider.System);
+
 builder.Services.AddDbContext<PropertyManagementDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));

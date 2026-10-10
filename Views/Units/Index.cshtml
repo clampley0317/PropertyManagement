@@ -1,0 +1,59 @@
+@model AvailableUnitsViewModel
+
+@{
+    ViewData["Title"] = "Available Units";
+}
+
+<h1>Available Units</h1>
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+        <label asp-for="PropertyId" class="form-label">Property</label>
+        <select asp-for="PropertyId" asp-items="Model.Properties" class="form-select">
+            <option value="">All properties</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary">Filter</button>
+    </div>
+</form>
+
+@if (Model.Units.Count == 0)
+{
+    <p class="text-muted">No units are available right now.</p>
+}
+else
+{
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Property</th>
+                <th>Unit</th>
+                <th>Type</th>
+                <th>Bedrooms</th>
+                <th class="text-end">Monthly Rent</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var unit in Model.Units)
+            {
+                <tr>
+                    <td>
+                        @unit.PropertyName
+                        <div class="small text-muted">@unit.PropertyAddress</div>
+                    </td>
+                    <td>@unit.UnitNumber</td>
+                    <td>@unit.UnitTypeName</td>
+                    <td>@unit.Bedrooms</td>
+                    <td class="text-end">@unit.MonthlyRent.ToString("C")</td>
+                    <td class="text-end">
+                        <form asp-controller="Applications" asp-action="Start" asp-route-unitId="@unit.Id" method="post">
+                            <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
