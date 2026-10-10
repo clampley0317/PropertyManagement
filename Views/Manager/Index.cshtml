@@ -1,5 +1,3 @@
-@model IEnumerable<PropertyManagement.Models.Property>
-
 @{
     ViewData["Title"] = "Property Manager Dashboard";
 }
@@ -8,186 +6,98 @@
 
 <p>Manage your properties and rental units.</p>
 
-<div class="mb-3">
-    <strong>Total properties:</strong> @Model.Count()
-    <br />
-    <strong>Total units:</strong> @Model.Sum(p => p.Units.Count)
-</div>
-
-<button type="button" class="btn btn-primary mb-3" id="addPropertyButton">
+<button type="button" class="btn btn-primary mb-3"
+        data-property-modal-url="@Url.Action("CreateProperty")"
+        data-property-modal-title="Add Property">
     Add Property
 </button>
 
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Property</th>
-            <th>Address</th>
-            <th>City</th>
-            <th>State</th>
-            <th>Units</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var property in Model)
-        {
-            <tr>
-                <td>@property.Name</td>
-                <td>@property.Address</td>
-                <td>@property.City</td>
-                <td>@property.State</td>
-                <td>@property.Units.Count</td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-outline-primary edit-property-button"
-                            data-id="@property.Id">
-                        Edit
-                    </button>
-                    <a asp-controller="Manager" asp-action="Units" asp-route-propertyId="@property.Id"
-                       class="btn btn-sm btn-outline-secondary">
-                        Manage Units
-                    </a>
-                    <form asp-controller="Manager" asp-action="DeleteProperty" method="post"
-                          class="delete-property-form d-inline">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@property.Id" />
-
-                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                            Delete
-                        </button>
-                    </form>
-                </td>
-            </tr>
-        }
-    </tbody>
-</table>
+<div id="propertyTableContainer" data-refresh-url="@Url.Action("PropertyTable")">
+    <vc:property-table />
+</div>
 
 <div class="modal fade" id="propertyModal" tabindex="-1" aria-labelledby="propertyModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="propertyModalLabel">
-                    Add Property
-                </h5>
+                <h5 class="modal-title" id="propertyModalLabel">Add Property</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-
-            <div class="modal-body" id="propertyModalBody">
-                Loading...
-            </div>
+            <div class="modal-body" id="propertyModalBody">Loading...</div>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <script>
-        const modalElement = document.getElementById("propertyModal");
-        const modalBody = document.getElementById("propertyModalBody");
-        const propertyModal = new bootstrap.Modal(modalElement);
+        const propertyModalElement = document.getElementById("propertyModal");
+        const propertyModalBody = document.getElementById("propertyModalBody");
+        const propertyModalTitle = document.getElementById("propertyModalLabel");
+        const propertyModal = new bootstrap.Modal(propertyModalElement);
+        const propertyTableContainer = document.getElementById("propertyTableContainer");
 
-        document.getElementById("addPropertyButton")
-            .addEventListener("click", async () => {
-                modalBody.innerHTML = "Loading...";
-
-                propertyModal.show();
-
-                const response = await fetch(
-                    '@Url.Action("CreateProperty", "Manager")'
-                );
-
-                if (!response.ok) {
-                    modalBody.innerHTML =
-                        "<p class='text-danger'>Could not load the form.</p>";
-                    return;
-                }
-
-                modalBody.innerHTML = await response.text();
-            });
-
-        modalElement.addEventListener("submit", async (event) => {
-            if (event.target.id !== "createPropertyForm" &&
-                event.target.id !== "editPropertyForm") {
-                return;
+        async function refreshPropertyTable() {
+            const response = await fetch(propertyTableContainer.dataset.refreshUrl);
+            if (response.ok) {
+                propertyTableContainer.innerHTML = await response.text();
             }
+        }
 
+        document.addEventListener("click", async event => {
+            const trigger = event.target.closest("[data-property-modal-url]");
+            if (!trigger) return;
+
+            propertyModalTitle.textContent = trigger.dataset.propertyModalTitle;
+            propertyModalBody.innerHTML = "Loading...";
+            propertyModal.show();
+
+            const response = await fetch(trigger.dataset.propertyModalUrl);
+            propertyModalBody.innerHTML = response.ok
+                ? await response.text()
+                : "<p class='text-danger'>Could not load the form.</p>";
+        });
+
+        propertyModalElement.addEventListener("submit", async event => {
+            if (event.target.id !== "propertyForm") return;
             event.preventDefault();
 
             const form = event.target;
-            const response = await fetch(form.action, {
-                method: "POST",
-                body: new FormData(form)
-            });
+            const response = await fetch(form.action, { method: "POST", body: new FormData(form) });
 
             if (!response.ok) {
-                modalBody.innerHTML =
-                    "<p class='text-danger'>The request failed. Please try again.</p>";
+                propertyModalBody.innerHTML = "<p class='text-danger'>The request failed.</p>";
                 return;
             }
 
-            const contentType = response.headers.get("content-type") ?? "";
-
-            if (contentType.includes("application/json")) {
+            if ((response.headers.get("content-type") ?? "").includes("application/json")) {
                 const result = await response.json();
-
                 if (result.success) {
-                    window.location.reload();
+                    propertyModal.hide();
+                    await refreshPropertyTable();
                     return;
                 }
             }
 
-            // Validation failed: replace the form with the
-            // partial containing the server-side error messages.
-            modalBody.innerHTML = await response.text();
+            // Validation failed: the server returned the same partial with errors.
+            propertyModalBody.innerHTML = await response.text();
         });
 
-        document.querySelectorAll(".edit-property-button")
-            .forEach(button => {
-                button.addEventListener("click", async () => {
-                    modalBody.innerHTML = "Loading...";
-                    propertyModal.show();
+        document.addEventListener("submit", async event => {
+            const form = event.target.closest(".delete-property-form");
+            if (!form) return;
+            event.preventDefault();
 
-                    const response = await fetch(
-                        `/Manager/EditProperty/${button.dataset.id}`
-                    );
+            if (!confirm("Delete this property?")) return;
 
-                    if (!response.ok) {
-                        modalBody.innerHTML =
-                            "<p class='text-danger'>Could not load the property.</p>";
-                        return;
-                    }
+            const response = await fetch(form.action, { method: "POST", body: new FormData(form) });
+            const result = await response.json().catch(() => null);
 
-                    modalBody.innerHTML = await response.text();
-                });
-            });
+            if (response.ok && result?.success) {
+                await refreshPropertyTable();
+                return;
+            }
 
-        document.querySelectorAll(".delete-property-form")
-            .forEach(form => {
-                form.addEventListener("submit", async event => {
-                    event.preventDefault();
-
-                    if (!confirm("Delete this property?")) {
-                        return;
-                    }
-
-                    const response = await fetch(form.action, {
-                        method: "POST",
-                        body: new FormData(form)
-                    });
-
-                    if (response.ok) {
-                        const result = await response.json();
-
-                        if (result.success) {
-                            window.location.reload();
-                            return;
-                        }
-                    }
-
-                    const result = await response.json().catch(() => null);
-
-                    alert(result?.message ??
-                        "Could not delete this property.");
-                });
-            });
+            alert(result?.message ?? "Could not delete this property.");
+        });
     </script>
 }

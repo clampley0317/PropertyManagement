@@ -23,7 +23,7 @@ public class Unit
     [Range(0, 99999999.99)]
     public decimal MonthlyRent { get; set; }
 
-    public Property? Property { get; set; } = null!;
+    public Property Property { get; set; } = null!;
 
-    public UnitType? UnitType { get; set; } = null!;
+    public UnitType UnitType { get; set; } = null!;
 }
