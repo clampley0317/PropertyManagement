@@ -1,0 +1,259 @@
+Project PropertyManagement {
+  database_type: 'SQL Server'
+  Note: '''
+  Property Management Technical Assessment
+
+  ASP.NET Core MVC / .NET 10
+  Entity Framework Core
+  ASP.NET Identity
+  SQL Server
+  '''
+}
+
+
+// ============================================================
+// ASP.NET IDENTITY
+// ============================================================
+
+Table AspNetUsers {
+  Id nvarchar(450) [pk]
+  UserName nvarchar(256) [unique]
+  NormalizedUserName nvarchar(256)
+  Email nvarchar(256)
+  NormalizedEmail nvarchar(256)
+  EmailConfirmed bit [not null]
+  PasswordHash nvarchar(max)
+  SecurityStamp nvarchar(max)
+  ConcurrencyStamp nvarchar(max)
+  PhoneNumber nvarchar(max)
+  PhoneNumberConfirmed bit [not null]
+  TwoFactorEnabled bit [not null]
+  LockoutEnd datetimeoffset
+  LockoutEnabled bit [not null]
+  AccessFailedCount int [not null]
+
+  FirstName nvarchar(100) [not null]
+  LastName nvarchar(100) [not null]
+}
+
+
+// ============================================================
+// IDENTITY ROLES
+// ============================================================
+
+Table AspNetRoles {
+  Id nvarchar(450) [pk]
+  Name nvarchar(256)
+  NormalizedName nvarchar(256) [unique]
+  ConcurrencyStamp nvarchar(max)
+}
+
+
+Table AspNetUserRoles {
+  UserId nvarchar(450) [not null]
+  RoleId nvarchar(450) [not null]
+
+  indexes {
+    (UserId, RoleId) [pk]
+  }
+}
+
+
+Ref: AspNetUserRoles.UserId > AspNetUsers.Id
+Ref: AspNetUserRoles.RoleId > AspNetRoles.Id
+
+
+// ============================================================
+// PROPERTIES
+// ============================================================
+
+Table Properties {
+  Id int [pk, increment]
+
+  Name nvarchar(200) [not null]
+
+  Address nvarchar(250) [not null]
+  City nvarchar(100) [not null]
+  State nvarchar(50) [not null]
+  ZipCode nvarchar(20) [not null]
+
+  CreatedAt datetime2 [not null]
+  UpdatedAt datetime2
+}
+
+
+// ============================================================
+// UNIT TYPES
+// ============================================================
+
+Table UnitTypes {
+  Id int [pk, increment]
+
+  Name nvarchar(100) [not null, unique]
+  IsActive bit [not null]
+}
+
+
+// ============================================================
+// UNITS
+// ============================================================
+
+Table Units {
+  Id int [pk, increment]
+
+  PropertyId int [not null]
+  UnitTypeId int [not null]
+
+  UnitNumber nvarchar(50) [not null]
+  Bedrooms int [not null]
+  MonthlyRent decimal(18,2) [not null]
+
+  CreatedAt datetime2 [not null]
+  UpdatedAt datetime2
+
+  indexes {
+    (PropertyId, UnitNumber) [unique]
+    PropertyId
+    UnitTypeId
+  }
+}
+
+
+Ref: Units.PropertyId > Properties.Id
+Ref: Units.UnitTypeId > UnitTypes.Id
+
+
+// ============================================================
+// RENTAL APPLICATIONS
+// ============================================================
+
+Enum ApplicationStatus {
+  Draft
+  Submitted
+  Returned
+  Approved
+  Denied
+  Withdrawn
+}
+
+
+Table RentalApplications {
+  Id int [pk, increment]
+
+  ApplicantId nvarchar(450) [not null]
+  UnitId int [not null]
+
+  Status ApplicationStatus [not null]
+
+  // Applicant information
+  ApplicantFirstName nvarchar(100) [not null]
+  ApplicantLastName nvarchar(100) [not null]
+  ApplicantPhone nvarchar(50) [not null]
+  ApplicantEmail nvarchar(256) [not null]
+
+  // Current address
+  CurrentAddress nvarchar(250) [not null]
+  CurrentCity nvarchar(100) [not null]
+  CurrentState nvarchar(50) [not null]
+  CurrentZipCode nvarchar(20) [not null]
+
+  CreatedAt datetime2 [not null]
+  UpdatedAt datetime2 [not null]
+  SubmittedAt datetime2
+
+  indexes {
+    ApplicantId
+    UnitId
+    Status
+    (ApplicantId, Status)
+  }
+}
+
+
+Ref: RentalApplications.ApplicantId > AspNetUsers.Id
+Ref: RentalApplications.UnitId > Units.Id
+
+
+// ============================================================
+// RESIDENCE HISTORY
+// ============================================================
+
+Table Residences {
+  Id int [pk, increment]
+
+  RentalApplicationId int [not null]
+
+  Address nvarchar(250) [not null]
+  City nvarchar(100) [not null]
+  State nvarchar(50) [not null]
+  ZipCode nvarchar(20) [not null]
+
+  LandlordName nvarchar(200) [not null]
+  LandlordPhone nvarchar(50) [not null]
+
+  MoveInDate date [not null]
+  MoveOutDate date [not null]
+
+  indexes {
+    RentalApplicationId
+  }
+}
+
+
+Ref: Residences.RentalApplicationId > RentalApplications.Id [delete: cascade]
+
+
+// ============================================================
+// APPLICATION STATUS HISTORY
+// ============================================================
+
+Table ApplicationStatusHistories {
+  Id int [pk, increment]
+
+  RentalApplicationId int [not null]
+  ChangedByUserId nvarchar(450) [not null]
+
+  FromStatus ApplicationStatus
+  ToStatus ApplicationStatus [not null]
+
+  ChangedAt datetime2 [not null]
+
+  Comment nvarchar(max)
+
+  indexes {
+    RentalApplicationId
+    ChangedByUserId
+    ChangedAt
+  }
+}
+
+
+Ref: ApplicationStatusHistories.RentalApplicationId > RentalApplications.Id [delete: cascade]
+Ref: ApplicationStatusHistories.ChangedByUserId > AspNetUsers.Id
+
+
+// ============================================================
+// LEASES
+// ============================================================
+
+Table Leases {
+  Id int [pk, increment]
+
+  RentalApplicationId int [not null]
+  UnitId int [not null]
+
+  StartDate date [not null]
+  EndDate date [not null]
+
+  CreatedAt datetime2 [not null]
+
+  indexes {
+    RentalApplicationId [unique]
+    UnitId
+    (UnitId, StartDate, EndDate)
+  }
+}
+
+
+Ref: Leases.RentalApplicationId - RentalApplications.Id
+Ref: Leases.UnitId > Units.Id
