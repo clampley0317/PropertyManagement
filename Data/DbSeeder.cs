@@ -237,13 +237,13 @@ public static class DbSeeder
 
         var statuses = new[]
         {
-        ApplicationStatus.Draft,
-        ApplicationStatus.Submitted,
-        ApplicationStatus.Returned,
-        ApplicationStatus.Approved,
-        ApplicationStatus.Denied,
-        ApplicationStatus.Withdrawn
-    };
+            ApplicationStatus.Draft,
+            ApplicationStatus.Submitted,
+            ApplicationStatus.Returned,
+            ApplicationStatus.Approved,
+            ApplicationStatus.Denied,
+            ApplicationStatus.Withdrawn
+        };
 
         var applications = new List<RentalApplication>();
 
@@ -252,19 +252,31 @@ public static class DbSeeder
             var applicant = applicants[i % applicants.Count];
             var unit = units[i];
 
+            var status = statuses[i];
+            var createdAt = DateTime.UtcNow.AddDays(-(30 - i));
+
             var application = new RentalApplication
             {
                 ApplicantId = applicant.Id,
                 UnitId = unit.Id,
-                Status = statuses[i],
+                Status = status,
+
+                FirstName = applicant.FirstName,
+                LastName = applicant.LastName,
+                Email = applicant.Email!,
+                Phone = faker.Phone.PhoneNumber("(###) ###-####"),
 
                 CurrentAddress = faker.Address.StreetAddress(),
                 CurrentCity = faker.Address.City(),
                 CurrentState = faker.Address.StateAbbr(),
-                CurrentZipCode = faker.Address.ZipCode(),
+                CurrentZipCode = faker.Address.ZipCode("#####"),
 
-                CreatedAt = DateTime.UtcNow.AddDays(-(30 - i)),
-                UpdatedAt = DateTime.UtcNow.AddDays(-(10 - i))
+                ApplicantInfoCompleted = true,
+                ResidenceHistoryCompleted = status != ApplicationStatus.Draft,
+
+                CreatedAt = createdAt,
+                SubmittedAt = status == ApplicationStatus.Draft ? null : createdAt.AddDays(2),
+                UpdatedAt = createdAt.AddDays(5)
             };
 
             applications.Add(application);
@@ -274,12 +286,7 @@ public static class DbSeeder
         await context.SaveChangesAsync();
 
         await SeedResidencesAsync(context, applications, faker);
-        await SeedStatusHistoryAsync(
-            context,
-            applications,
-            applicants,
-            manager,
-            faker);
+        await SeedStatusHistoryAsync(context, applications, manager);
 
         await SeedLeasesAsync(context, applications);
     }
@@ -293,34 +300,30 @@ public static class DbSeeder
 
         foreach (var application in applications)
         {
+            var moveOutDate = DateTime.UtcNow.Date.AddMonths(-faker.Random.Int(1, 3));
             var residenceCount = faker.Random.Int(1, 3);
 
             for (var i = 0; i < residenceCount; i++)
             {
-                var moveInDate = DateTime.UtcNow
-                    .AddYears(-(i + 1))
-                    .AddMonths(-faker.Random.Int(0, 11));
+                var moveInDate = moveOutDate.AddMonths(-faker.Random.Int(12, 36));
 
-                var residence = new Residence
+                residences.Add(new Residence
                 {
                     RentalApplicationId = application.Id,
 
                     Address = faker.Address.StreetAddress(),
                     City = faker.Address.City(),
                     State = faker.Address.StateAbbr(),
-                    ZipCode = faker.Address.ZipCode(),
+                    ZipCode = faker.Address.ZipCode("#####"),
 
                     LandlordName = faker.Name.FullName(),
-                    LandlordPhone = faker.Phone.PhoneNumber(),
+                    LandlordPhone = faker.Phone.PhoneNumber("(###) ###-####"),
 
                     MoveInDate = moveInDate,
-                    MoveOutDate = i == 0
-                        ? null
-                        : moveInDate.AddMonths(
-                            faker.Random.Int(6, 24))
-                };
+                    MoveOutDate = moveOutDate
+                });
 
-                residences.Add(residence);
+                moveOutDate = moveInDate;
             }
         }
 
@@ -331,65 +334,51 @@ public static class DbSeeder
     private static async Task SeedStatusHistoryAsync(
         PropertyManagementDbContext context,
         List<RentalApplication> applications,
-        IList<AspNetUser> applicants,
-        AspNetUser manager,
-        Faker faker)
+        AspNetUser manager)
     {
         var history = new List<ApplicationStatusHistory>();
 
         foreach (var application in applications)
         {
-            var applicant = applicants
-                .First(a => a.Id == application.ApplicantId);
-
-            // Initial creation
-            history.Add(new ApplicationStatusHistory
-            {
-                RentalApplicationId = application.Id,
-                ChangedByUserId = applicant.Id,
-                FromStatus = application.Status,
-                ToStatus = application.Status,
-                ChangedAt = application.CreatedAt,
-                Comment = "Application created."
-            });
-
-            // Manager review history for non-draft applications
-            if (application.Status != ApplicationStatus.Draft)
-            {
-                var comment = application.Status switch
-                {
-                    ApplicationStatus.Submitted =>
-                        "Application submitted for review.",
-
-                    ApplicationStatus.Returned =>
-                        "Please provide additional residence information.",
-
-                    ApplicationStatus.Approved =>
-                        "Application approved.",
-
-                    ApplicationStatus.Denied =>
-                        "Application does not meet current qualification requirements.",
-
-                    ApplicationStatus.Withdrawn =>
-                        "Application withdrawn by applicant.",
-
-                    _ => null
-                };
-
+            void Add(ApplicationStatus? from, ApplicationStatus to, string userId, DateTime at, string? comment = null) =>
                 history.Add(new ApplicationStatusHistory
                 {
                     RentalApplicationId = application.Id,
-                    ChangedByUserId =
-                        application.Status == ApplicationStatus.Withdrawn
-                            ? applicant.Id
-                            : manager.Id,
-
-                    FromStatus = ApplicationStatus.Submitted,
-                    ToStatus = application.Status,
-
-                    ChangedAt = application.UpdatedAt,
+                    FromStatus = from,
+                    ToStatus = to,
+                    ChangedByUserId = userId,
+                    ChangedAt = at,
                     Comment = comment
                 });
+
+            var applicantId = application.ApplicantId;
+
+            Add(null, ApplicationStatus.Draft, applicantId, application.CreatedAt);
+
+            if (application.Status == ApplicationStatus.Draft)
+            {
+                continue;
+            }
+
+            Add(ApplicationStatus.Draft, ApplicationStatus.Submitted, applicantId, application.SubmittedAt!.Value);
+
+            switch (application.Status)
+            {
+                case ApplicationStatus.Returned:
+                    Add(ApplicationStatus.Submitted, ApplicationStatus.Returned, manager.Id, application.UpdatedAt,
+                        "Please add your landlord's phone number for your previous residence.");
+                    break;
+                case ApplicationStatus.Approved:
+                    Add(ApplicationStatus.Submitted, ApplicationStatus.Approved, manager.Id, application.UpdatedAt,
+                        "Approved. Welcome!");
+                    break;
+                case ApplicationStatus.Denied:
+                    Add(ApplicationStatus.Submitted, ApplicationStatus.Denied, manager.Id, application.UpdatedAt,
+                        "Income does not meet the requirement for this unit.");
+                    break;
+                case ApplicationStatus.Withdrawn:
+                    Add(ApplicationStatus.Submitted, ApplicationStatus.Withdrawn, applicantId, application.UpdatedAt);
+                    break;
             }
         }
 

@@ -75,5 +75,8 @@ public class PropertyManagementDbContext(DbContextOptions<PropertyManagementDbCo
             .WithMany()
             .HasForeignKey(l => l.UnitId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<RentalApplication>()
+            .HasIndex(a => a.Status);
     }
 }
