@@ -28,7 +28,7 @@
     <div class="d-flex align-items-center gap-2">
         @if (!isManager)
         {
-            <span class="badge text-bg-secondary fs-6">@Model.Status</span>
+            <partial name="_StatusBadge" model="Model.Status" />
         }
 
         @if (Model.CanWithdraw)
@@ -170,9 +170,11 @@ else
                 const response = await fetch(form.action, { method: "POST", body: new FormData(form) });
 
                 if (!response.ok) {
-                    residenceModalBody.innerHTML = "<p class='text-danger'>The request failed. Reload the page and try again.</p>";
+                    const error = await response.json().catch(() => null);
+                    residenceModalBody.innerHTML = `<p class='text-danger'>${error?.message ?? "The request failed. Reload the page and try again."}</p>`;
                     return;
                 }
+
 
                 if ((response.headers.get("content-type") ?? "").includes("application/json")) {
                     const result = await response.json();
@@ -203,7 +205,9 @@ else
                     return;
                 }
 
-                alert("Could not remove this residence. Reload the page and try again.");
+                const error = await response.json().catch(() => null);
+                alert(error?.message ?? "Could not remove this residence. Reload the page and try again.");
+
             });
         }
 

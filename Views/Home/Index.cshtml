@@ -1,8 +1,95 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+﻿@model HomeViewModel
+@inject IWebHostEnvironment Environment
+
+@{
+    ViewData["Title"] = "Home";
+
+    // A Razor local function: one definition for every dashboard card on this page.
+    void StatCard(string label, int count, string? url, string accent = "")
+    {
+        <div class="col-sm-6 col-lg-3">
+            <a href="@url" class="card h-100 text-decoration-none @accent">
+                <div class="card-body">
+                    <div class="display-6">@count</div>
+                    <div class="text-muted">@label</div>
+                </div>
+            </a>
+        </div>
+    }
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+@if (!Model.IsSignedIn)
+{
+    <div class="py-5 text-center">
+        <h1 class="display-5">Find your next home</h1>
+        <p class="lead text-muted mb-4">
+            Browse available apartments, apply online, and follow your application through review.
+        </p>
+        <a asp-area="Identity" asp-page="/Account/Register" class="btn btn-primary btn-lg me-2">Create an account</a>
+        <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-outline-secondary btn-lg">Log in</a>
+    </div>
+
+    @if (Environment.IsDevelopment())
+    {
+        @* Seeded accounts, shown only in Development so reviewers can sign in straight away. *@
+        <div class="alert alert-info mx-auto" style="max-width: 32rem;">
+            <strong>Demo accounts</strong> (password <code>Password123!</code>)
+            <ul class="mb-0">
+                <li>Property manager: <code>manager@example.com</code></li>
+                <li>Applicant: <code>applicant1@example.com</code></li>
+                <li>Applicant: <code>applicant2@example.com</code></li>
+            </ul>
+        </div>
+    }
+}
+else if (Model.IsManager)
+{
+    <h1 class="mb-4">Dashboard</h1>
+
+    <div class="row g-3 mb-4">
+        @{
+            StatCard("Awaiting review", Model.CountOf(ApplicationStatus.Submitted),
+                Url.Action("Index", "Applications", new { status = ApplicationStatus.Submitted }),
+                Model.CountOf(ApplicationStatus.Submitted) > 0 ? "border-primary" : "");
+            StatCard("Returned to applicants", Model.CountOf(ApplicationStatus.Returned),
+                Url.Action("Index", "Applications", new { status = ApplicationStatus.Returned }));
+            StatCard("Properties", Model.PropertyCount, Url.Action("Index", "Manager"));
+            StatCard("Available units", Model.AvailableUnitCount, Url.Action("Index", "Manager"));
+        }
+    </div>
+
+    <a asp-controller="Applications" asp-action="Index" class="btn btn-outline-primary">All applications</a>
+}
+else
+{
+    <h1 class="mb-4">Welcome back</h1>
+
+    @if (Model.CountOf(ApplicationStatus.Returned) > 0)
+    {
+        <div class="alert alert-warning">
+            A property manager returned
+            @(Model.CountOf(ApplicationStatus.Returned) == 1 ? "an application" : "applications")
+            for corrections.
+            <a asp-controller="Applications" asp-action="Index" asp-route-status="@ApplicationStatus.Returned"
+               class="alert-link">
+                Review and resubmit
+            </a>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        @{
+            StatCard("Needs your attention", Model.CountOf(ApplicationStatus.Returned),
+                Url.Action("Index", "Applications", new { status = ApplicationStatus.Returned }),
+                Model.CountOf(ApplicationStatus.Returned) > 0 ? "border-warning" : "");
+            StatCard("Drafts in progress", Model.CountOf(ApplicationStatus.Draft),
+                Url.Action("Index", "Applications", new { status = ApplicationStatus.Draft }));
+            StatCard("Awaiting decision", Model.CountOf(ApplicationStatus.Submitted),
+                Url.Action("Index", "Applications", new { status = ApplicationStatus.Submitted }));
+            StatCard("Available units", Model.AvailableUnitCount, Url.Action("Index", "Units"));
+        }
+    </div>
+
+    <a asp-controller="Units" asp-action="Index" class="btn btn-primary">Browse available units</a>
+    <a asp-controller="Applications" asp-action="Index" class="btn btn-outline-secondary">My applications</a>
+}

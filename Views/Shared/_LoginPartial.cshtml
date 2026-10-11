@@ -9,7 +9,7 @@
         <li class="nav-item">
             <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">
                 Hello
-                @User.Identity?.Name!
+                <span style="font-weight: bold;">@User.Identity?.Name!</span>
             </a>
         </li>
         <li class="nav-item">

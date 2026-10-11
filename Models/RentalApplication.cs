@@ -49,6 +49,11 @@ public class RentalApplication
     public DateTime UpdatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
 
+    // Changed by SQL Server on every update. EF includes it in each UPDATE's WHERE clause,
+    // so a save based on stale data affects no rows and throws DbUpdateConcurrencyException.
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = [];
+
     public ICollection<Residence> Residences { get; set; } = [];
     public ICollection<ApplicationStatusHistory> StatusHistory { get; set; } = [];
 

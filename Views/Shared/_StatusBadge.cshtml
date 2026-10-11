@@ -1,0 +1,15 @@
+@model PropertyManagement.Enums.ApplicationStatus
+
+@{
+    var css = Model switch
+    {
+        ApplicationStatus.Draft => "text-bg-secondary",
+        ApplicationStatus.Submitted => "text-bg-primary",
+        ApplicationStatus.Returned => "text-bg-warning",
+        ApplicationStatus.Approved => "text-bg-success",
+        ApplicationStatus.Denied => "text-bg-danger",
+        _ => "text-bg-dark"
+    };
+}
+
+<span class="badge @css">@Model</span>

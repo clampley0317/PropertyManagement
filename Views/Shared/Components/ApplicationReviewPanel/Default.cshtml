@@ -4,7 +4,7 @@
     <div class="card-header d-flex justify-content-between align-items-center">
         <div>
             <strong>Status:</strong>
-            <span class="badge text-bg-secondary fs-6">@Model.Status</span>
+            <partial name="_StatusBadge" model="Model.Status" />
             @if (Model.LeaseStart is not null)
             {
                 <span class="ms-2 text-muted">

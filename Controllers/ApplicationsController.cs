@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using PropertyManagement.Constants;
 using PropertyManagement.Data;
@@ -21,6 +22,47 @@ public class ApplicationsController(
     TimeProvider timeProvider) : Controller
 {
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+    [HttpGet]
+    public async Task<IActionResult> Index(ApplicationStatus? status, int? propertyId)
+    {
+        var isManager = User.IsInRole(AppRoles.PropertyManager);
+
+        var visible = context.RentalApplications
+            .AsNoTracking()
+            .VisibleTo(CurrentUserId, isManager);
+
+        var applications = await visible
+            .FilterBy(status, propertyId)
+            .OrderByDescending(a => a.UpdatedAt)
+            .Select(a => new ApplicationListRowViewModel(
+                a.Id,
+                a.Applicant.FirstName + " " + a.Applicant.LastName,
+                a.Unit.Property.Name,
+                a.Unit.UnitNumber,
+                a.Status,
+                a.SubmittedAt,
+                a.UpdatedAt))
+            .ToListAsync();
+
+        // Only offer properties that appear in this user's visible applications.
+        var properties = await context.Properties
+            .AsNoTracking()
+            .Where(p => visible.Any(a => a.Unit.PropertyId == p.Id))
+            .OrderBy(p => p.Name)
+            .Select(p => new SelectListItem(p.Name, p.Id.ToString()))
+            .ToListAsync();
+
+        return View(new ApplicationListViewModel
+        {
+            Status = status,
+            PropertyId = propertyId,
+            IsManager = isManager,
+            Properties = properties,
+            Applications = applications
+        });
+    }
+
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -171,7 +213,11 @@ public class ApplicationsController(
         }
 
         application.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
-        await context.SaveChangesAsync();
+        if (!await TrySaveAsync())
+        {
+            TempData["Error"] = ConcurrencyMessage;
+            return RedirectToSection(application.Id, model.Section);
+        }
 
         return RedirectToSection(application.Id, ApplicationRules.Next(model.Section));
     }
@@ -198,23 +244,21 @@ public class ApplicationsController(
         }
 
         application.ChangeStatus(ApplicationStatus.Submitted, CurrentUserId, now);
-        await context.SaveChangesAsync();
+
+        if (!await TrySaveAsync())
+        {
+            TempData["Error"] = ConcurrencyMessage;
+            return RedirectToSection(application.Id, ApplicationSection.Summary);
+        }
 
         TempData["Success"] = "Your application has been submitted.";
         return RedirectToSection(application.Id, ApplicationSection.Summary);
     }
 
-    private async Task<RentalApplication?> FindVisibleApplicationAsync(int id)
-    {
-        var query = context.RentalApplications.Where(a => a.Id == id);
-
-        if (!User.IsInRole(AppRoles.PropertyManager))
-        {
-            query = query.Where(a => a.ApplicantId == CurrentUserId);
-        }
-
-        return await query.FirstOrDefaultAsync();
-    }
+    private Task<RentalApplication?> FindVisibleApplicationAsync(int id) =>
+        context.RentalApplications
+            .VisibleTo(CurrentUserId, User.IsInRole(AppRoles.PropertyManager))
+            .FirstOrDefaultAsync(a => a.Id == id);
 
     private bool CanEdit(RentalApplication application) =>
         application.ApplicantId == CurrentUserId && ApplicationRules.IsEditableStatus(application.Status);
@@ -309,6 +353,24 @@ public class ApplicationsController(
         residence.MoveOutDate = model.MoveOutDate!.Value.Date;
     }
 
+    // Saves the changes; returns false if another request changed the application after it was loaded.
+    private async Task<bool> TrySaveAsync()
+    {
+        try
+        {
+            await context.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return false;
+        }
+    }
+
+    private const string ConcurrencyMessage =
+        "This application was changed by someone else while you were working. Reload the page and try again.";
+
+
 
     // Returns just the residence section, so the page can refresh it after a modal save.
     [HttpGet]
@@ -364,7 +426,10 @@ public class ApplicationsController(
 
         context.Residences.Add(residence);
         MarkResidencesChanged(application);
-        await context.SaveChangesAsync();
+        if (!await TrySaveAsync())
+        {
+            return Conflict(new { success = false, message = ConcurrencyMessage });
+        }
 
         return Json(new { success = true });
     }
@@ -432,7 +497,10 @@ public class ApplicationsController(
 
         ApplyResidence(model, residence);
         MarkResidencesChanged(application);
-        await context.SaveChangesAsync();
+        if (!await TrySaveAsync())
+        {
+            return Conflict(new { success = false, message = ConcurrencyMessage });
+        }
 
         return Json(new { success = true });
     }
@@ -459,7 +527,10 @@ public class ApplicationsController(
 
         context.Residences.Remove(residence);
         MarkResidencesChanged(application);
-        await context.SaveChangesAsync();
+        if (!await TrySaveAsync())
+        {
+            return Conflict(new { success = false, message = ConcurrencyMessage });
+        }
 
         return Json(new { success = true });
     }
@@ -483,7 +554,12 @@ public class ApplicationsController(
         }
 
         application.ChangeStatus(ApplicationStatus.Withdrawn, CurrentUserId, timeProvider.GetUtcNow().UtcDateTime);
-        await context.SaveChangesAsync();
+
+        if (!await TrySaveAsync())
+        {
+            TempData["Error"] = ConcurrencyMessage;
+            return RedirectToSection(id, ApplicationSection.Summary);
+        }
 
         TempData["Success"] = "Your application has been withdrawn.";
         return RedirectToSection(id, ApplicationSection.Summary);
@@ -578,10 +654,17 @@ public class ApplicationsController(
 
         application.ChangeStatus(newStatus, CurrentUserId, now, model.Comment?.Trim());
 
-        await context.SaveChangesAsync();
+        if (!await TrySaveAsync())
+        {
+            // The transaction is disposed without committing, so the lease insert is rolled back as well.
+            ModelState.AddModelError(string.Empty, ConcurrencyMessage);
+            return PartialView("_ReviewForm", model);
+        }
+
         await transaction.CommitAsync();
 
         return Json(new { success = true });
+
     }
 
 }
