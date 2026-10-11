@@ -60,4 +60,19 @@ public static class ApplicationRules
         ApplicationSection.Summary => ApplicationSection.ResidenceHistory,
         _ => ApplicationSection.ApplicantInfo
     };
+
+    public static ApplicationStatus StatusFor(ReviewOutcome outcome) => outcome switch
+    {
+        ReviewOutcome.Approve => ApplicationStatus.Approved,
+        ReviewOutcome.Return => ApplicationStatus.Returned,
+        ReviewOutcome.Deny => ApplicationStatus.Denied,
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome))
+    };
+
+    public static bool RequiresComment(ReviewOutcome outcome) =>
+        outcome is ReviewOutcome.Return or ReviewOutcome.Deny;
+
+    // Reviewable means a manager can still decide the outcome.
+    public static bool IsReviewable(ApplicationStatus status) =>
+        CanTransition(status, ApplicationStatus.Approved);
 }

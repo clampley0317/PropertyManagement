@@ -121,4 +121,26 @@ public class ApplicationRulesTests
     {
         Assert.Equal(expected, ApplicationRules.Previous(from));
     }
+
+    [Theory]
+    [InlineData(ReviewOutcome.Approve, ApplicationStatus.Approved, false)]
+    [InlineData(ReviewOutcome.Return, ApplicationStatus.Returned, true)]
+    [InlineData(ReviewOutcome.Deny, ApplicationStatus.Denied, true)]
+    public void Review_outcomes_map_to_status_and_comment_rule(
+        ReviewOutcome outcome, ApplicationStatus expectedStatus, bool commentRequired)
+    {
+        Assert.Equal(expectedStatus, ApplicationRules.StatusFor(outcome));
+        Assert.Equal(commentRequired, ApplicationRules.RequiresComment(outcome));
+    }
+
+    [Theory]
+    [InlineData(ApplicationStatus.Submitted, true)]
+    [InlineData(ApplicationStatus.Draft, false)]
+    [InlineData(ApplicationStatus.Returned, false)]
+    [InlineData(ApplicationStatus.Approved, false)]
+    public void Only_submitted_applications_are_reviewable(ApplicationStatus status, bool expected)
+    {
+        Assert.Equal(expected, ApplicationRules.IsReviewable(status));
+    }
+
 }

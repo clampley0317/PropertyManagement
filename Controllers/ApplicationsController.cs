@@ -489,4 +489,99 @@ public class ApplicationsController(
         return RedirectToSection(id, ApplicationSection.Summary);
     }
 
+    [HttpGet]
+    [Authorize(Roles = AppRoles.PropertyManager)]
+    public IActionResult ReviewPanel(int id)
+    {
+        return ViewComponent("ApplicationReviewPanel", new { applicationId = id });
+    }
+
+    [HttpGet]
+    [Authorize(Roles = AppRoles.PropertyManager)]
+    public async Task<IActionResult> Review(int id)
+    {
+        var status = await context.RentalApplications
+            .Where(a => a.Id == id)
+            .Select(a => (ApplicationStatus?)a.Status)
+            .FirstOrDefaultAsync();
+
+        if (status is null)
+        {
+            return NotFound();
+        }
+
+        if (!ApplicationRules.IsReviewable(status.Value))
+        {
+            return Conflict();
+        }
+
+        return PartialView("_ReviewForm", new ReviewApplicationViewModel { ApplicationId = id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.PropertyManager)]
+    public async Task<IActionResult> Review(int id, ReviewApplicationViewModel model)
+    {
+        model.ApplicationId = id;
+
+        if (!ModelState.IsValid)
+        {
+            return PartialView("_ReviewForm", model);
+        }
+
+        var unitId = await context.RentalApplications
+            .Where(a => a.Id == id)
+            .Select(a => (int?)a.UnitId)
+            .FirstOrDefaultAsync();
+
+        if (unitId is null)
+        {
+            return NotFound();
+        }
+
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+
+        await using var transaction = await context.Database.BeginTransactionAsync();
+
+        // Lock the unit's row until commit. A second manager reviewing an application for the same
+        // unit waits here, then sees this transaction's lease, so two approvals can't both pass the check.
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT Id FROM Units WITH (UPDLOCK, ROWLOCK) WHERE Id = {unitId}");
+
+        // Load the application only after taking the lock, so its status is current.
+        var application = await context.RentalApplications.FirstAsync(a => a.Id == id);
+        var newStatus = ApplicationRules.StatusFor(model.Outcome!.Value);
+
+        if (!ApplicationRules.CanTransition(application.Status, newStatus))
+        {
+            ModelState.AddModelError(string.Empty,
+                $"This application is {application.Status} and can no longer be reviewed.");
+            return PartialView("_ReviewForm", model);
+        }
+
+        if (newStatus == ApplicationStatus.Approved)
+        {
+            var unitLeased = await context.Leases
+                .ActiveOn(now)
+                .AnyAsync(l => l.UnitId == application.UnitId);
+
+            if (unitLeased)
+            {
+                ModelState.AddModelError(string.Empty,
+                    "This unit already has an active lease, so the application cannot be approved.");
+                return PartialView("_ReviewForm", model);
+            }
+
+            context.Leases.Add(Lease.StartingOn(application, now));
+        }
+
+        application.ChangeStatus(newStatus, CurrentUserId, now, model.Comment?.Trim());
+
+        await context.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        return Json(new { success = true });
+    }
+
 }

@@ -395,14 +395,7 @@ public static class DbSeeder
             .ToList();
 
         var leases = approvedApplications
-            .Select(application => new Lease
-            {
-                RentalApplicationId = application.Id,
-                UnitId = application.UnitId,
-
-                StartDate = DateTime.UtcNow.Date,
-                EndDate = DateTime.UtcNow.Date.AddMonths(12)
-            })
+            .Select(application => Lease.StartingOn(application, DateTime.UtcNow))
             .ToList();
 
         await context.Leases.AddRangeAsync(leases);
