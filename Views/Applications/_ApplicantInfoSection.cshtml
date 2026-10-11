@@ -1,0 +1,67 @@
+@model ApplicationWizardViewModel
+
+@{
+    var editable = Model.IsEditable && ViewData["ReadOnly"] is not true;
+    var info = Model.ApplicantInfo;
+}
+
+<h2 class="h5 mb-3">Applicant Information</h2>
+
+@if (editable)
+{
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label asp-for="ApplicantInfo.FirstName" class="form-label"></label>
+            <input asp-for="ApplicantInfo.FirstName" class="form-control" />
+            <span asp-validation-for="ApplicantInfo.FirstName" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="ApplicantInfo.LastName" class="form-label"></label>
+            <input asp-for="ApplicantInfo.LastName" class="form-control" />
+            <span asp-validation-for="ApplicantInfo.LastName" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="ApplicantInfo.Phone" class="form-label"></label>
+            <input asp-for="ApplicantInfo.Phone" class="form-control" />
+            <span asp-validation-for="ApplicantInfo.Phone" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="ApplicantInfo.Email" class="form-label"></label>
+            <input asp-for="ApplicantInfo.Email" class="form-control" />
+            <span asp-validation-for="ApplicantInfo.Email" class="text-danger"></span>
+        </div>
+        <div class="col-12 mb-3">
+            <label asp-for="ApplicantInfo.Address" class="form-label"></label>
+            <input asp-for="ApplicantInfo.Address" class="form-control" />
+            <span asp-validation-for="ApplicantInfo.Address" class="text-danger"></span>
+        </div>
+        <div class="col-md-6 mb-3">
+            <label asp-for="ApplicantInfo.City" class="form-label"></label>
+            <input asp-for="ApplicantInfo.City" class="form-control" />
+            <span asp-validation-for="ApplicantInfo.City" class="text-danger"></span>
+        </div>
+        <div class="col-md-2 mb-3">
+            <label asp-for="ApplicantInfo.State" class="form-label"></label>
+            <input asp-for="ApplicantInfo.State" class="form-control" maxlength="2" />
+            <span asp-validation-for="ApplicantInfo.State" class="text-danger"></span>
+        </div>
+        <div class="col-md-4 mb-3">
+            <label asp-for="ApplicantInfo.ZipCode" class="form-label"></label>
+            <input asp-for="ApplicantInfo.ZipCode" class="form-control" />
+            <span asp-validation-for="ApplicantInfo.ZipCode" class="text-danger"></span>
+        </div>
+    </div>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Name</dt>
+        <dd class="col-sm-9">@info.FirstName @info.LastName</dd>
+        <dt class="col-sm-3">Phone</dt>
+        <dd class="col-sm-9">@info.Phone</dd>
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@info.Email</dd>
+        <dt class="col-sm-3">Current Address</dt>
+        <dd class="col-sm-9">@info.Address, @info.City, @info.State @info.ZipCode</dd>
+    </dl>
+}

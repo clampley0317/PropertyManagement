@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using PropertyManagement.Domain;
 using PropertyManagement.Enums;
 
 namespace PropertyManagement.Models;
@@ -50,4 +51,29 @@ public class RentalApplication
 
     public ICollection<Residence> Residences { get; set; } = [];
     public ICollection<ApplicationStatusHistory> StatusHistory { get; set; } = [];
+
+    public void ChangeStatus(ApplicationStatus to, string changedByUserId, DateTime at, string? comment = null)
+    {
+        if (!ApplicationRules.CanTransition(Status, to))
+        {
+            throw new InvalidOperationException($"Cannot change an application from {Status} to {to}.");
+        }
+
+        StatusHistory.Add(new ApplicationStatusHistory
+        {
+            FromStatus = Status,
+            ToStatus = to,
+            ChangedByUserId = changedByUserId,
+            ChangedAt = at,
+            Comment = comment
+        });
+
+        Status = to;
+        UpdatedAt = at;
+
+        if (to == ApplicationStatus.Submitted)
+        {
+            SubmittedAt = at;
+        }
+    }
 }

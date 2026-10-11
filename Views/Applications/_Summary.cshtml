@@ -1,0 +1,24 @@
+@model ApplicationWizardViewModel
+
+@{
+    var readOnly = new ViewDataDictionary(ViewData) { ["ReadOnly"] = true };
+}
+
+<partial name="_ApplicantInfoSection" model="Model" view-data="readOnly" />
+
+<hr />
+
+<partial name="_ResidenceHistorySection" model="Model" view-data="readOnly" />
+
+@if (Model.IsEditable && Model.SubmitBlockers.Count > 0)
+{
+    <div class="alert alert-warning mt-3">
+        <strong>Before you can submit:</strong>
+        <ul class="mb-0">
+            @foreach (var blocker in Model.SubmitBlockers)
+            {
+                <li>@blocker</li>
+            }
+        </ul>
+    </div>
+}
