@@ -395,7 +395,7 @@ public static class DbSeeder
             .ToList();
 
         var leases = approvedApplications
-            .Select(application => Lease.StartingOn(application, DateTime.UtcNow))
+            .Select(application => Lease.StartingOn(application, application.UpdatedAt))
             .ToList();
 
         await context.Leases.AddRangeAsync(leases);

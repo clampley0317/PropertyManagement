@@ -12,7 +12,9 @@ public class UnitTableViewComponent(PropertyManagementDbContext context) : ViewC
         var rows = await context.Units
             .AsNoTracking()
             .Where(u => u.PropertyId == propertyId)
-            .OrderBy(u => u.UnitNumber)
+            // Unit numbers are text; sorting by length first gives 1, 2, ... 10 rather than 1, 10, 2.
+            .OrderBy(u => u.UnitNumber.Length)
+            .ThenBy(u => u.UnitNumber)
             .Select(u => new UnitRowViewModel(
                 u.Id,
                 u.UnitNumber,

@@ -59,7 +59,6 @@ public class RegisterModel(
     {
         ReturnUrl = returnUrl;
 
-        // Radio buttons can be tampered with, so check the role on the server.
         if (Input.Role is not null && !AppRoles.All.Contains(Input.Role))
         {
             ModelState.AddModelError("Input.Role", "Choose a valid account type.");
@@ -90,7 +89,6 @@ public class RegisterModel(
 
         if (!roleResult.Succeeded)
         {
-            // Never leave a user without a role.
             await userManager.DeleteAsync(user);
             AddErrors(roleResult);
             return Page();
@@ -98,7 +96,6 @@ public class RegisterModel(
 
         logger.LogInformation("User {Email} registered as {Role}.", user.Email, Input.Role);
 
-        // Sign in after adding the role, so the auth cookie contains the role claim.
         await signInManager.SignInAsync(user, isPersistent: false);
 
         return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl : Url.Content("~/"));

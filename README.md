@@ -154,6 +154,9 @@ dotnet run
 - Another user's application returns 404 rather than 403, so its existence isn't revealed.
 - Endpoints called with `fetch` return a plain 403 status rather than redirecting to the login page.
 - The demo credentials on the home page are shown only in Development.
+- Empty error responses (403, 404, 409) are re-executed into a friendly page that keeps the original status code. JSON error responses used by `fetch` are left unchanged.
+
+**Deleting never destroys history.** A property can't be deleted while it has units, and a unit can't be deleted once it has applications or leases. The manager gets a message explaining why. Foreign keys use `Restrict` as a second line of defence.
 
 **Post/Redirect/Get.** Every successful full-page POST redirects to a GET, so refreshing never re-submits a form.
 

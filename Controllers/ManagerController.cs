@@ -12,14 +12,11 @@ namespace PropertyManagement.Controllers;
 [Authorize(Roles = AppRoles.PropertyManager)]
 public class ManagerController(PropertyManagementDbContext context) : Controller
 {
-    private readonly PropertyManagementDbContext _context = context;
-
     public IActionResult Index()
     {
         return View();
     }
 
-    // Returns only the table HTML, so the page can refresh it after a change.
     [HttpGet]
     public IActionResult PropertyTable()
     {
@@ -43,7 +40,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             return PartialView("_PropertyForm", model);
         }
 
-        _context.Properties.Add(new Property
+        context.Properties.Add(new Property
         {
             Name = model.Name,
             Address = model.Address,
@@ -52,7 +49,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             ZipCode = model.ZipCode
         });
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return Json(new { success = true });
     }
@@ -60,7 +57,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
     [HttpGet]
     public async Task<IActionResult> EditProperty(int id)
     {
-        var model = await _context.Properties
+        var model = await context.Properties
             .AsNoTracking()
             .Where(p => p.Id == id)
             .Select(p => new PropertyFormViewModel
@@ -96,7 +93,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             return PartialView("_PropertyForm", model);
         }
 
-        var property = await _context.Properties.FirstOrDefaultAsync(p => p.Id == id);
+        var property = await context.Properties.FirstOrDefaultAsync(p => p.Id == id);
 
         if (property is null)
         {
@@ -109,7 +106,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
         property.State = model.State.ToUpperInvariant();
         property.ZipCode = model.ZipCode;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return Json(new { success = true });
     }
@@ -118,14 +115,14 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteProperty(int id)
     {
-        var property = await _context.Properties.FirstOrDefaultAsync(p => p.Id == id);
+        var property = await context.Properties.FirstOrDefaultAsync(p => p.Id == id);
 
         if (property is null)
         {
             return NotFound();
         }
 
-        if (await _context.Units.AnyAsync(u => u.PropertyId == id))
+        if (await context.Units.AnyAsync(u => u.PropertyId == id))
         {
             return Conflict(new
             {
@@ -134,8 +131,8 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             });
         }
 
-        _context.Properties.Remove(property);
-        await _context.SaveChangesAsync();
+        context.Properties.Remove(property);
+        await context.SaveChangesAsync();
 
         return Json(new { success = true });
     }
@@ -143,7 +140,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
     [HttpGet]
     public async Task<IActionResult> Units(int propertyId)
     {
-        var model = await _context.Properties
+        var model = await context.Properties
             .AsNoTracking()
             .Where(p => p.Id == propertyId)
             .Select(p => new UnitsPageViewModel
@@ -161,7 +158,6 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
         return View(model);
     }
 
-    // Returns only the table HTML, so the page can refresh it after a change.
     [HttpGet]
     public IActionResult UnitTable(int propertyId)
     {
@@ -171,7 +167,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
     [HttpGet]
     public async Task<IActionResult> CreateUnit(int propertyId)
     {
-        if (!await _context.Properties.AnyAsync(p => p.Id == propertyId))
+        if (!await context.Properties.AnyAsync(p => p.Id == propertyId))
         {
             return NotFound();
         }
@@ -189,7 +185,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateUnit(UnitFormViewModel model)
     {
-        if (!await _context.Properties.AnyAsync(p => p.Id == model.PropertyId))
+        if (!await context.Properties.AnyAsync(p => p.Id == model.PropertyId))
         {
             return NotFound();
         }
@@ -203,7 +199,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             return PartialView("_UnitForm", model);
         }
 
-        _context.Units.Add(new Unit
+        context.Units.Add(new Unit
         {
             PropertyId = model.PropertyId,
             UnitNumber = model.UnitNumber,
@@ -212,7 +208,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             MonthlyRent = model.MonthlyRent
         });
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return Json(new { success = true });
     }
@@ -220,7 +216,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
     [HttpGet]
     public async Task<IActionResult> EditUnit(int id)
     {
-        var unit = await _context.Units
+        var unit = await context.Units
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id);
 
@@ -252,7 +248,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             return BadRequest();
         }
 
-        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id);
+        var unit = await context.Units.FirstOrDefaultAsync(u => u.Id == id);
 
         if (unit is null)
         {
@@ -274,7 +270,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
         unit.Bedrooms = model.Bedrooms;
         unit.MonthlyRent = model.MonthlyRent;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return Json(new { success = true });
     }
@@ -283,7 +279,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteUnit(int id)
     {
-        var unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == id);
+        var unit = await context.Units.FirstOrDefaultAsync(u => u.Id == id);
 
         if (unit is null)
         {
@@ -291,8 +287,8 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
         }
 
         var hasHistory =
-            await _context.RentalApplications.AnyAsync(a => a.UnitId == id) ||
-            await _context.Leases.AnyAsync(l => l.UnitId == id);
+            await context.RentalApplications.AnyAsync(a => a.UnitId == id) ||
+            await context.Leases.AnyAsync(l => l.UnitId == id);
 
         if (hasHistory)
         {
@@ -303,16 +299,15 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             });
         }
 
-        _context.Units.Remove(unit);
-        await _context.SaveChangesAsync();
+        context.Units.Remove(unit);
+        await context.SaveChangesAsync();
 
         return Json(new { success = true });
     }
 
-    // Active types, plus the unit's own saved type even if it is now inactive.
     private async Task<List<SelectListItem>> GetUnitTypeOptionsAsync(int? currentUnitTypeId)
     {
-        return await _context.UnitTypes
+        return await context.UnitTypes
             .AsNoTracking()
             .Where(t => t.IsActive || t.Id == currentUnitTypeId)
             .OrderBy(t => t.Name)
@@ -326,7 +321,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
 
     private async Task ValidateUnitAsync(UnitFormViewModel model, int? persistedUnitTypeId)
     {
-        var unitTypeSelectable = await _context.UnitTypes.AnyAsync(t =>
+        var unitTypeSelectable = await context.UnitTypes.AnyAsync(t =>
             t.Id == model.UnitTypeId &&
             (t.IsActive || t.Id == persistedUnitTypeId));
 
@@ -335,7 +330,7 @@ public class ManagerController(PropertyManagementDbContext context) : Controller
             ModelState.AddModelError(nameof(model.UnitTypeId), "Select an active unit type.");
         }
 
-        var duplicateNumber = await _context.Units.AnyAsync(u =>
+        var duplicateNumber = await context.Units.AnyAsync(u =>
             u.PropertyId == model.PropertyId &&
             u.UnitNumber == model.UnitNumber &&
             u.Id != model.Id);

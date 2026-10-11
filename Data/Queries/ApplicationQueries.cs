@@ -5,7 +5,6 @@ namespace PropertyManagement.Data.Queries;
 
 public static class ApplicationQueries
 {
-    // The single ownership rule: managers see every application, applicants only their own.
     public static IQueryable<RentalApplication> VisibleTo(
         this IQueryable<RentalApplication> applications,
         string userId,
@@ -16,7 +15,6 @@ public static class ApplicationQueries
             : applications.Where(a => a.ApplicantId == userId);
     }
 
-    // Each filter is optional and only adds a WHERE clause when it is set.
     public static IQueryable<RentalApplication> FilterBy(
         this IQueryable<RentalApplication> applications,
         ApplicationStatus? status,

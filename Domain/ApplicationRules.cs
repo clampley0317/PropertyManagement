@@ -5,7 +5,6 @@ namespace PropertyManagement.Domain;
 
 public static class ApplicationRules
 {
-    // Every allowed status change. A status with no entry is terminal.
     private static readonly Dictionary<ApplicationStatus, ApplicationStatus[]> AllowedTransitions = new()
     {
         [ApplicationStatus.Draft] = [ApplicationStatus.Submitted, ApplicationStatus.Withdrawn],
@@ -26,7 +25,6 @@ public static class ApplicationRules
     public static bool IsEditableStatus(ApplicationStatus status) =>
         status is ApplicationStatus.Draft or ApplicationStatus.Returned;
 
-    // Everything stopping the application from being submitted; empty means it can be.
     public static IReadOnlyList<string> SubmitBlockers(RentalApplication application)
     {
         var blockers = new List<string>();
@@ -72,7 +70,6 @@ public static class ApplicationRules
     public static bool RequiresComment(ReviewOutcome outcome) =>
         outcome is ReviewOutcome.Return or ReviewOutcome.Deny;
 
-    // Reviewable means a manager can still decide the outcome.
     public static bool IsReviewable(ApplicationStatus status) =>
         CanTransition(status, ApplicationStatus.Approved);
 }

@@ -6,8 +6,7 @@
 
 <p>Manage your properties and rental units.</p>
 
-<button type="button" class="btn btn-primary mb-3"
-        data-property-modal-url="@Url.Action("CreateProperty")"
+<button type="button" class="btn btn-primary mb-3" data-property-modal-url="@Url.Action("CreateProperty")"
         data-property-modal-title="Add Property">
     Add Property
 </button>
@@ -78,7 +77,6 @@
                 }
             }
 
-            // Validation failed: the server returned the same partial with errors.
             propertyModalBody.innerHTML = await response.text();
         });
 

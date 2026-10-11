@@ -27,6 +27,7 @@ public class UnitsController(PropertyManagementDbContext context, TimeProvider t
 
         var units = await query
             .OrderBy(u => u.Property.Name)
+            .ThenBy(u => u.UnitNumber.Length)
             .ThenBy(u => u.UnitNumber)
             .Select(u => new AvailableUnitRowViewModel(
                 u.Id,

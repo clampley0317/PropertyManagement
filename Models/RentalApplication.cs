@@ -16,7 +16,6 @@ public class RentalApplication
 
     public ApplicationStatus Status { get; set; }
 
-    // Section 1: Applicant Information. Empty while the application is a draft.
     [MaxLength(100)]
     public string FirstName { get; set; } = string.Empty;
 
@@ -41,7 +40,6 @@ public class RentalApplication
     [MaxLength(10)]
     public string CurrentZipCode { get; set; } = string.Empty;
 
-    // Set when a section passes validation and is saved; Submit requires both.
     public bool ApplicantInfoCompleted { get; set; }
     public bool ResidenceHistoryCompleted { get; set; }
 
@@ -49,8 +47,6 @@ public class RentalApplication
     public DateTime UpdatedAt { get; set; }
     public DateTime? SubmittedAt { get; set; }
 
-    // Changed by SQL Server on every update. EF includes it in each UPDATE's WHERE clause,
-    // so a save based on stale data affects no rows and throws DbUpdateConcurrencyException.
     [Timestamp]
     public byte[] RowVersion { get; set; } = [];
 

@@ -22,7 +22,6 @@ public class HomeController(PropertyManagementDbContext context, TimeProvider ti
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var isManager = User.IsInRole(AppRoles.PropertyManager);
 
-        // One grouped query: SQL returns a count per status rather than every application.
         var statusCounts = await context.RentalApplications
             .VisibleTo(userId, isManager)
             .GroupBy(a => a.Status)
@@ -43,9 +42,10 @@ public class HomeController(PropertyManagementDbContext context, TimeProvider ti
         });
     }
 
-    public IActionResult Privacy()
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public IActionResult HttpStatus(int id)
     {
-        return View();
+        return View(id);
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]

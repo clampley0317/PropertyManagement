@@ -45,7 +45,6 @@ public class ApplicationsController(
                 a.UpdatedAt))
             .ToListAsync();
 
-        // Only offer properties that appear in this user's visible applications.
         var properties = await context.Properties
             .AsNoTracking()
             .Where(p => visible.Any(a => a.Unit.PropertyId == p.Id))
@@ -62,7 +61,6 @@ public class ApplicationsController(
             Applications = applications
         });
     }
-
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -81,7 +79,6 @@ public class ApplicationsController(
             return RedirectToAction("Index", "Units");
         }
 
-        // Don't create a duplicate if this applicant already has an editable application for the unit.
         var existingId = await context.RentalApplications
             .Where(a => a.ApplicantId == CurrentUserId
                         && a.UnitId == unitId
@@ -107,7 +104,6 @@ public class ApplicationsController(
             UnitId = unitId,
             Status = ApplicationStatus.Draft,
 
-            // Pre-fill from the profile; the applicant can change these in section 1.
             FirstName = user.FirstName,
             LastName = user.LastName,
             Email = user.Email ?? string.Empty,
@@ -146,7 +142,6 @@ public class ApplicationsController(
         return View(await BuildWizardAsync(application, section ?? defaultSection));
     }
 
-    // One form, one action: the button that was clicked (command) decides what happens.
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = AppRoles.Applicant)]
@@ -232,7 +227,6 @@ public class ApplicationsController(
 
         var now = timeProvider.GetUtcNow().UtcDateTime;
 
-        // Other open applications for this unit are left alone; this one just can't be submitted.
         var unitLeased = await context.Leases
             .ActiveOn(now)
             .AnyAsync(l => l.UnitId == application.UnitId);
@@ -315,8 +309,6 @@ public class ApplicationsController(
         };
     }
 
-    // For the modal endpoints: 404 if the application isn't yours, 403 if it can no longer be edited.
-    // A plain 403 status (not Forbid()) so fetch gets an error rather than a redirect to the login page.
     private async Task<(RentalApplication? Application, IActionResult? Error)> FindEditableApplicationAsync(int id)
     {
         var application = await FindVisibleApplicationAsync(id);
@@ -334,7 +326,6 @@ public class ApplicationsController(
         return (application, null);
     }
 
-    // The residence list changed, so the section must be confirmed again with Save & Continue.
     private void MarkResidencesChanged(RentalApplication application)
     {
         application.ResidenceHistoryCompleted = false;
@@ -353,7 +344,6 @@ public class ApplicationsController(
         residence.MoveOutDate = model.MoveOutDate!.Value.Date;
     }
 
-    // Saves the changes; returns false if another request changed the application after it was loaded.
     private async Task<bool> TrySaveAsync()
     {
         try
@@ -370,9 +360,6 @@ public class ApplicationsController(
     private const string ConcurrencyMessage =
         "This application was changed by someone else while you were working. Reload the page and try again.";
 
-
-
-    // Returns just the residence section, so the page can refresh it after a modal save.
     [HttpGet]
     public async Task<IActionResult> ResidenceHistory(int id)
     {
@@ -478,7 +465,6 @@ public class ApplicationsController(
             return error!;
         }
 
-        // Scoped to this application, so a tampered residenceId can't reach another applicant's data.
         var residence = await context.Residences
             .FirstOrDefaultAsync(r => r.Id == residenceId && r.RentalApplicationId == id);
 
@@ -656,7 +642,6 @@ public class ApplicationsController(
 
         if (!await TrySaveAsync())
         {
-            // The transaction is disposed without committing, so the lease insert is rolled back as well.
             ModelState.AddModelError(string.Empty, ConcurrencyMessage);
             return PartialView("_ReviewForm", model);
         }
@@ -664,7 +649,5 @@ public class ApplicationsController(
         await transaction.CommitAsync();
 
         return Json(new { success = true });
-
     }
-
 }
